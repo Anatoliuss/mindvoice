@@ -1,112 +1,62 @@
-# Flutter
+# MindVoice
 
-A modern Flutter-based mobile application utilizing the latest mobile development technologies and tools for building responsive cross-platform applications.
+MindVoice is an MVP Flutter app that connects to an ESP32-C3 device via Bluetooth Low Energy (BLE), receives voice messages, and uses OpenAI to analyze and summarize them, providing mental health advice.
 
-## 📋 Prerequisites
+## Features
+- **BLE Connection:** Scan for and connect to an ESP32-C3 device.
+- **Voice Message Reception:** Receive and store audio messages sent from the ESP32-C3.
+- **Audio Playback:** Play back received voice messages in-app.
+- **AI Transcription:** Transcribe audio messages using OpenAI Whisper.
+- **AI Analysis:** Summarize messages and generate mental health advice using OpenAI GPT.
+- **Message History:** View all received messages, their transcriptions, summaries, and advice.
 
-- Flutter SDK (^3.29.2)
-- Dart SDK
-- Android Studio / VS Code with Flutter extensions
-- Android SDK / Xcode (for iOS development)
+## Requirements
+- Flutter 3.16 or newer
+- An ESP32-C3 device programmed to send audio data over BLE (with known service and characteristic UUIDs)
+- An OpenAI API key (for Whisper and GPT)
 
-## 🛠️ Installation
+## Setup Instructions
 
-1. Install dependencies:
-```bash
-flutter pub get
-```
+1. **Clone the repository:**
+   ```sh
+   git clone https://github.com/Anatoliuss/mindvoice.git
+   cd mindvoice/mindvoice
+   ```
 
-2. Run the application:
-```bash
-flutter run
-```
+2. **Install dependencies:**
+   ```sh
+   flutter pub get
+   ```
 
-## 📁 Project Structure
+3. **Configure OpenAI API Key:**
+   - Open `lib/core/openai_service.dart`.
+   - Replace the placeholder `sk-REPLACE_ME` with your OpenAI API key.
 
-```
-flutter_app/
-├── android/            # Android-specific configuration
-├── ios/                # iOS-specific configuration
-├── lib/
-│   ├── core/           # Core utilities and services
-│   │   └── utils/      # Utility classes
-│   ├── presentation/   # UI screens and widgets
-│   │   └── splash_screen/ # Splash screen implementation
-│   ├── routes/         # Application routing
-│   ├── theme/          # Theme configuration
-│   ├── widgets/        # Reusable UI components
-│   └── main.dart       # Application entry point
-├── assets/             # Static assets (images, fonts, etc.)
-├── pubspec.yaml        # Project dependencies and configuration
-└── README.md           # Project documentation
-```
+4. **Set BLE UUIDs:**
+   - Open `lib/core/ble_service.dart`.
+   - Replace the placeholder `audioServiceUuid` and `audioCharacteristicUuid` with your ESP32's actual UUIDs.
 
-## 🧩 Adding Routes
+5. **Run the app:**
+   ```sh
+   flutter run
+   ```
 
-To add new routes to the application, update the `lib/routes/app_routes.dart` file:
+## ESP32 BLE Requirements
+- The ESP32-C3 must advertise a BLE service and characteristic for audio data.
+- The app expects to receive audio as a stream of bytes (e.g., WAV or raw PCM).
+- Update the UUIDs in the app to match your ESP32 firmware.
 
-```dart
-import 'package:flutter/material.dart';
-import 'package:package_name/presentation/home_screen/home_screen.dart';
+## Usage Guide
+1. **Connect to ESP32:** Tap "Connect to ESP32 Device" and select your device from the list.
+2. **Receive Audio:** When the ESP32 sends audio, it will be saved and appear in the message history.
+3. **Playback:** Tap the play button to listen to a message.
+4. **Transcribe:** Tap the text icon to transcribe the audio using OpenAI Whisper.
+5. **Summarize & Advise:** Tap the psychology icon to get a summary and mental health advice from OpenAI GPT.
 
-class AppRoutes {
-  static const String initial = '/';
-  static const String home = '/home';
+## Troubleshooting
+- Ensure your ESP32 is powered on and advertising BLE.
+- Make sure your OpenAI API key is valid and you have internet access.
+- If you see errors, check the debug console for details.
 
-  static Map<String, WidgetBuilder> routes = {
-    initial: (context) => const SplashScreen(),
-    home: (context) => const HomeScreen(),
-    // Add more routes as needed
-  }
-}
-```
-
-## 🎨 Theming
-
-This project includes a comprehensive theming system with both light and dark themes:
-
-```dart
-// Access the current theme
-ThemeData theme = Theme.of(context);
-
-// Use theme colors
-Color primaryColor = theme.colorScheme.primary;
-```
-
-The theme configuration includes:
-- Color schemes for light and dark modes
-- Typography styles
-- Button themes
-- Input decoration themes
-- Card and dialog themes
-
-## 📱 Responsive Design
-
-The app is built with responsive design using the Sizer package:
-
-```dart
-// Example of responsive sizing
-Container(
-  width: 50.w, // 50% of screen width
-  height: 20.h, // 20% of screen height
-  child: Text('Responsive Container'),
-)
-```
-## 📦 Deployment
-
-Build the application for production:
-
-```bash
-# For Android
-flutter build apk --release
-
-# For iOS
-flutter build ios --release
-```
-
-## 🙏 Acknowledgments
-- Built with [Rocket.new](https://rocket.new)
-- Powered by [Flutter](https://flutter.dev) & [Dart](https://dart.dev)
-- Styled with Material Design
-
-Built with ❤️ on Rocket.new
+## License
+This MVP is for demonstration and prototyping purposes only.
