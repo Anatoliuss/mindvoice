@@ -16,6 +16,10 @@ dependencies:
   fl_chart: ^0.65.0
   google_fonts: ^6.1.0
   web: any
+  flutter_blue: ^0.8.0
+  path_provider: ^2.1.2
+  http: ^1.2.1
+  just_audio: ^0.9.36
 dev_dependencies: 
   flutter_test: 
     sdk: flutter

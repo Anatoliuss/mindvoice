@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:just_audio/just_audio.dart';
 
 import '../../core/app_export.dart';
 import './widgets/date_section_header_widget.dart';
 import './widgets/empty_state_widget.dart';
 import './widgets/voice_message_card_widget.dart';
+import '../../core/openai_service.dart';
 
 class VoiceMessageHistory extends StatefulWidget {
   const VoiceMessageHistory({super.key});
@@ -20,76 +22,14 @@ class _VoiceMessageHistoryState extends State<VoiceMessageHistory>
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
   String _searchQuery = '';
-  String? _expandedMessageId;
-  String? _playingMessageId;
-
-  // Mock data for voice messages
-  final List<Map<String, dynamic>> _voiceMessages = [
-    {
-      "id": "msg_001",
-      "timestamp": DateTime.now().subtract(const Duration(hours: 2)),
-      "duration": "2:34",
-      "mentalStateScore": 7.2,
-      "waveformData": [0.2, 0.5, 0.8, 0.3, 0.6, 0.9, 0.4, 0.7, 0.1, 0.8],
-      "transcription":
-          "I had a really productive day at work today. The presentation went well and my team was very supportive. I feel confident about the upcoming project deadlines.",
-      "analysis":
-          "Positive emotional state detected with high confidence levels. Indicators of professional satisfaction and team collaboration.",
-      "advice":
-          "Continue building on this positive momentum. Consider documenting what made today successful to replicate these conditions.",
-      "tags": ["work", "confidence", "teamwork"],
-      "isImportant": false,
-      "audioUrl": "https://example.com/audio1.mp3"
-    },
-    {
-      "id": "msg_002",
-      "timestamp": DateTime.now().subtract(const Duration(hours: 5)),
-      "duration": "1:47",
-      "mentalStateScore": 4.8,
-      "waveformData": [0.3, 0.2, 0.4, 0.6, 0.3, 0.5, 0.2, 0.4, 0.3, 0.5],
-      "transcription":
-          "Feeling a bit overwhelmed with all the tasks I need to complete. The deadline is approaching and I'm not sure if I can finish everything on time.",
-      "analysis":
-          "Mild stress indicators present. Voice patterns suggest anxiety about time management and workload.",
-      "advice":
-          "Try breaking down large tasks into smaller, manageable steps. Consider using time-blocking techniques to organize your schedule.",
-      "tags": ["stress", "deadline", "overwhelmed"],
-      "isImportant": true,
-      "audioUrl": "https://example.com/audio2.mp3"
-    },
-    {
-      "id": "msg_003",
-      "timestamp": DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-      "duration": "3:12",
-      "mentalStateScore": 8.5,
-      "waveformData": [0.7, 0.9, 0.6, 0.8, 0.5, 0.9, 0.7, 0.8, 0.6, 0.9],
-      "transcription":
-          "Had an amazing weekend with family. We went hiking and spent quality time together. I feel refreshed and ready for the week ahead.",
-      "analysis":
-          "Excellent emotional state with strong positive indicators. Family time and outdoor activities showing beneficial effects.",
-      "advice":
-          "Maintain this balance between work and personal life. Regular outdoor activities and family time are clearly beneficial for your wellbeing.",
-      "tags": ["family", "hiking", "refreshed", "weekend"],
-      "isImportant": false,
-      "audioUrl": "https://example.com/audio3.mp3"
-    },
-    {
-      "id": "msg_004",
-      "timestamp": DateTime.now().subtract(const Duration(days: 3)),
-      "duration": "2:15",
-      "mentalStateScore": 6.1,
-      "waveformData": [0.4, 0.6, 0.5, 0.7, 0.4, 0.6, 0.5, 0.6, 0.4, 0.7],
-      "transcription":
-          "Meeting with the client went okay, but I feel like I could have prepared better. Need to work on my presentation skills.",
-      "analysis":
-          "Moderate confidence levels with self-reflective tendencies. Shows growth mindset and willingness to improve.",
-      "advice":
-          "Self-reflection is a strength. Consider joining a public speaking group or practicing presentations with colleagues.",
-      "tags": ["client", "presentation", "improvement"],
-      "isImportant": false,
-      "audioUrl": "https://example.com/audio4.mp3"
-    },
-  ];
+  bool _isTranscribing = false;
+  int? _transcribingIndex;
+  bool _isSummarizing = false;
+  int? _summarizingIndex;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  int? _playingIndex;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
 
   @override
   void initState() {
@@ -102,168 +42,68 @@ class _VoiceMessageHistoryState extends State<VoiceMessageHistory>
     _tabController.dispose();
     _scrollController.dispose();
     _searchController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
-  List<Map<String, dynamic>> get _filteredMessages {
-    if (_searchQuery.isEmpty) return _voiceMessages;
-
-    return _voiceMessages.where((message) {
-      final transcription = (message['transcription'] as String).toLowerCase();
-      final tags = (message['tags'] as List).join(' ').toLowerCase();
-      final query = _searchQuery.toLowerCase();
-
-      return transcription.contains(query) || tags.contains(query);
-    }).toList();
-  }
-
-  Map<String, List<Map<String, dynamic>>> get _groupedMessages {
-    final Map<String, List<Map<String, dynamic>>> grouped = {};
-    final now = DateTime.now();
-
-    for (final message in _filteredMessages) {
-      final timestamp = message['timestamp'] as DateTime;
-      final difference = now.difference(timestamp).inDays;
-
-      String groupKey;
-      if (difference == 0) {
-        groupKey = 'Today';
-      } else if (difference == 1) {
-        groupKey = 'Yesterday';
-      } else if (difference <= 7) {
-        groupKey = 'This Week';
-      } else {
-        groupKey = 'Earlier';
-      }
-
-      grouped.putIfAbsent(groupKey, () => []);
-      grouped[groupKey]!.add(message);
-    }
-
-    return grouped;
-  }
-
-  Color _getScoreColor(double score) {
-    if (score >= 7.0) return AppTheme.getSuccessColor(true);
-    if (score >= 5.0) return AppTheme.getWarningColor(true);
-    return AppTheme.lightTheme.colorScheme.error;
-  }
-
-  void _toggleExpanded(String messageId) {
-    setState(() {
-      _expandedMessageId = _expandedMessageId == messageId ? null : messageId;
-    });
-  }
-
-  void _togglePlayback(String messageId) {
-    setState(() {
-      _playingMessageId = _playingMessageId == messageId ? null : messageId;
-    });
-
-    // Haptic feedback
-    HapticFeedback.lightImpact();
-  }
-
-  void _showContextMenu(BuildContext context, Map<String, dynamic> message) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: CustomIconWidget(
-                iconName: 'edit',
-                color: AppTheme.lightTheme.colorScheme.primary,
-                size: 24,
-              ),
-              title: const Text('Edit Tags'),
-              onTap: () {
-                Navigator.pop(context);
-                // Handle edit tags
-              },
-            ),
-            ListTile(
-              leading: CustomIconWidget(
-                iconName: 'alarm',
-                color: AppTheme.lightTheme.colorScheme.primary,
-                size: 24,
-              ),
-              title: const Text('Set Reminder'),
-              onTap: () {
-                Navigator.pop(context);
-                // Handle set reminder
-              },
-            ),
-            ListTile(
-              leading: CustomIconWidget(
-                iconName: 'star',
-                color: AppTheme.getWarningColor(true),
-                size: 24,
-              ),
-              title: Text(message['isImportant']
-                  ? 'Remove Important'
-                  : 'Mark Important'),
-              onTap: () {
-                Navigator.pop(context);
-                setState(() {
-                  message['isImportant'] = !message['isImportant'];
-                });
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _deleteMessage(String messageId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Message'),
-        content: const Text(
-            'Are you sure you want to delete this voice message? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _voiceMessages.removeWhere((msg) => msg['id'] == messageId);
-              });
-            },
-            child: Text(
-              'Delete',
-              style: TextStyle(color: AppTheme.lightTheme.colorScheme.error),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _refreshMessages() async {
-    // Simulate refresh delay
-    await Future.delayed(const Duration(seconds: 1));
+    // For MVP, just refresh UI
+    setState(() {});
+  }
 
-    // In real app, sync with ESP32C3 device
-    setState(() {
-      // Refresh logic here
-    });
+  Future<void> _playPause(int index, String filePath) async {
+    if (_playingIndex == index && _audioPlayer.playing) {
+      await _audioPlayer.pause();
+      setState(() {});
+      return;
+    }
+    try {
+      await _audioPlayer.setFilePath(filePath);
+      await _audioPlayer.play();
+      setState(() {
+        _playingIndex = index;
+      });
+      _audioPlayer.positionStream.listen((pos) {
+        setState(() {
+          _position = pos;
+        });
+      });
+      _audioPlayer.durationStream.listen((dur) {
+        setState(() {
+          _duration = dur ?? Duration.zero;
+        });
+      });
+      _audioPlayer.playerStateStream.listen((state) {
+        if (state.processingState == ProcessingState.completed) {
+          setState(() {
+            _playingIndex = null;
+            _position = Duration.zero;
+          });
+        }
+      });
+    } catch (e) {
+      print('Audio playback error: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final messages = VoiceMessageStore().messages;
     return Scaffold(
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.bluetooth),
+                label: const Text('Connect to ESP32 Device'),
+                onPressed: () {
+                  Navigator.pushNamed(context, AppRoutes.bleDevice);
+                },
+              ),
+            ),
             // Header with date range selector and search
             Container(
               padding: const EdgeInsets.all(16),
@@ -333,7 +173,6 @@ class _VoiceMessageHistoryState extends State<VoiceMessageHistory>
                 ],
               ),
             ),
-
             // Tab Bar View
             Expanded(
               child: TabBarView(
@@ -341,7 +180,6 @@ class _VoiceMessageHistoryState extends State<VoiceMessageHistory>
                 children: [
                   // History Tab
                   _buildHistoryTab(),
-
                   // Insights Tab
                   Center(
                     child: Column(
@@ -368,7 +206,6 @@ class _VoiceMessageHistoryState extends State<VoiceMessageHistory>
                       ],
                     ),
                   ),
-
                   // Advice Tab
                   Center(
                     child: Column(
@@ -403,7 +240,7 @@ class _VoiceMessageHistoryState extends State<VoiceMessageHistory>
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Trigger manual recording
+          // Trigger manual recording (future feature)
           HapticFeedback.mediumImpact();
         },
         child: CustomIconWidget(
@@ -416,42 +253,120 @@ class _VoiceMessageHistoryState extends State<VoiceMessageHistory>
   }
 
   Widget _buildHistoryTab() {
-    if (_filteredMessages.isEmpty) {
+    final messages = VoiceMessageStore().messages;
+    final filtered = _isSearching && _searchQuery.isNotEmpty
+        ? messages.where((m) => (m.transcription ?? '').toLowerCase().contains(_searchQuery.toLowerCase())).toList()
+        : messages;
+    if (filtered.isEmpty) {
       return const EmptyStateWidget();
     }
-
     return RefreshIndicator(
       onRefresh: _refreshMessages,
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
-        itemCount: _groupedMessages.length,
+        itemCount: filtered.length,
         itemBuilder: (context, index) {
-          final groupKey = _groupedMessages.keys.elementAt(index);
-          final messages = _groupedMessages[groupKey]!;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DateSectionHeaderWidget(title: groupKey),
-              const SizedBox(height: 8),
-              ...messages.map((message) => Column(
-                    children: [
-                      VoiceMessageCardWidget(
-                        message: message,
-                        isExpanded: _expandedMessageId == message['id'],
-                        isPlaying: _playingMessageId == message['id'],
-                        onTap: () => _toggleExpanded(message['id']),
-                        onPlayTap: () => _togglePlayback(message['id']),
-                        onLongPress: () => _showContextMenu(context, message),
-                        onDelete: () => _deleteMessage(message['id']),
-                        scoreColor: _getScoreColor(message['mentalStateScore']),
+          final message = filtered[index];
+          return Card(
+            child: ListTile(
+              leading: IconButton(
+                icon: Icon(
+                  _playingIndex == index && _audioPlayer.playing ? Icons.pause : Icons.play_arrow,
+                ),
+                onPressed: () => _playPause(index, message.filePath),
+              ),
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(message.filePath.split('/').last),
+                  Text(message.timestamp.toString(), style: const TextStyle(fontSize: 12)),
+                  if (message.transcription != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Transcription: ${message.transcription}',
+                        style: const TextStyle(fontSize: 13, color: Colors.black87),
                       ),
-                      const SizedBox(height: 12),
-                    ],
-                  )),
-              const SizedBox(height: 24),
-            ],
+                    ),
+                  if (message.analysis != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Summary: ${message.analysis}',
+                        style: const TextStyle(fontSize: 13, color: Colors.blueAccent),
+                      ),
+                    ),
+                  if (message.advice != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        'Advice: ${message.advice}',
+                        style: const TextStyle(fontSize: 13, color: Colors.green),
+                      ),
+                    ),
+                  if (_playingIndex == index && _duration > Duration.zero)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: LinearProgressIndicator(
+                        value: _position.inMilliseconds / _duration.inMilliseconds,
+                      ),
+                    ),
+                  if (_isTranscribing && _transcribingIndex == index)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0),
+                      child: LinearProgressIndicator(),
+                    ),
+                  if (_isSummarizing && _summarizingIndex == index)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0),
+                      child: LinearProgressIndicator(),
+                    ),
+                ],
+              ),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.text_fields),
+                    tooltip: 'Transcribe',
+                    onPressed: _isTranscribing
+                        ? null
+                        : () async {
+                            setState(() {
+                              _isTranscribing = true;
+                              _transcribingIndex = index;
+                            });
+                            final transcription = await OpenAIService().transcribeAudio(message.filePath);
+                            setState(() {
+                              message.transcription = transcription ?? 'Transcription failed.';
+                              _isTranscribing = false;
+                              _transcribingIndex = null;
+                            });
+                          },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.psychology),
+                    tooltip: 'Summarize & Advise',
+                    onPressed: (message.transcription == null || _isSummarizing)
+                        ? null
+                        : () async {
+                            setState(() {
+                              _isSummarizing = true;
+                              _summarizingIndex = index;
+                            });
+                            final result = await OpenAIService().summarizeAndAdvise(message.transcription!);
+                            setState(() {
+                              message.analysis = result?['summary'] ?? 'No summary.';
+                              message.advice = result?['advice'] ?? 'No advice.';
+                              _isSummarizing = false;
+                              _summarizingIndex = null;
+                            });
+                          },
+                  ),
+                ],
+              ),
+            ),
           );
         },
       ),
