@@ -34,7 +34,7 @@ class _VoiceMessageHistoryState extends State<VoiceMessageHistory>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -94,16 +94,6 @@ class _VoiceMessageHistoryState extends State<VoiceMessageHistory>
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.bluetooth),
-                label: const Text('Connect to ESP32 Device'),
-                onPressed: () {
-                  Navigator.pushNamed(context, AppRoutes.bleDevice);
-                },
-              ),
-            ),
             // Header with date range selector and search
             Container(
               padding: const EdgeInsets.all(16),
@@ -166,7 +156,6 @@ class _VoiceMessageHistoryState extends State<VoiceMessageHistory>
                     controller: _tabController,
                     tabs: const [
                       Tab(text: 'History'),
-                      Tab(text: 'Insights'),
                       Tab(text: 'Advice'),
                     ],
                   ),
@@ -180,32 +169,6 @@ class _VoiceMessageHistoryState extends State<VoiceMessageHistory>
                 children: [
                   // History Tab
                   _buildHistoryTab(),
-                  // Insights Tab
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CustomIconWidget(
-                          iconName: 'insights',
-                          color: AppTheme.lightTheme.colorScheme.primary,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Mental Health Insights',
-                          style: AppTheme.lightTheme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pushNamed(
-                                context, '/mental-health-insights');
-                          },
-                          child: const Text('View Detailed Insights'),
-                        ),
-                      ],
-                    ),
-                  ),
                   // Advice Tab
                   Center(
                     child: Column(

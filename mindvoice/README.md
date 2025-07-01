@@ -5,7 +5,7 @@ MindVoice is an MVP Flutter app that connects to an ESP32-C3 device via Bluetoot
 ## Features
 - **BLE Connection:** Scan for and connect to an ESP32-C3 device.
 - **Voice Message Reception:** Receive and store audio messages sent from the ESP32-C3.
-- **Audio Playback:** Play back received voice messages in-app.
+- **Audio Playback:** Play back received voAice messages in-app.
 - **AI Transcription:** Transcribe audio messages using OpenAI Whisper.
 - **AI Analysis:** Summarize messages and generate mental health advice using OpenAI GPT.
 - **Message History:** View all received messages, their transcriptions, summaries, and advice.
@@ -41,10 +41,6 @@ MindVoice is an MVP Flutter app that connects to an ESP32-C3 device via Bluetoot
    flutter run
    ```
 
-## ESP32 BLE Requirements
-- The ESP32-C3 must advertise a BLE service and characteristic for audio data.
-- The app expects to receive audio as a stream of bytes (e.g., WAV or raw PCM).
-- Update the UUIDs in the app to match your ESP32 firmware.
 
 ## Usage Guide
 1. **Connect to ESP32:** Tap "Connect to ESP32 Device" and select your device from the list.
@@ -53,10 +49,3 @@ MindVoice is an MVP Flutter app that connects to an ESP32-C3 device via Bluetoot
 4. **Transcribe:** Tap the text icon to transcribe the audio using OpenAI Whisper.
 5. **Summarize & Advise:** Tap the psychology icon to get a summary and mental health advice from OpenAI GPT.
 
-## Troubleshooting
-- Ensure your ESP32 is powered on and advertising BLE.
-- Make sure your OpenAI API key is valid and you have internet access.
-- If you see errors, check the debug console for details.
-
-## License
-This MVP is for demonstration and prototyping purposes only.

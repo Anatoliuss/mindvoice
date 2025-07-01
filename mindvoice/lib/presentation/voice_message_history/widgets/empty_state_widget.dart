@@ -44,7 +44,7 @@ class EmptyStateWidget extends StatelessWidget {
 
             // Description
             Text(
-              'Start recording your thoughts and feelings to track your mental wellness journey. Your ESP32C3 device will capture and analyze your voice messages.',
+              'Connect your device to start receiving voice messages.',
               style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
                 color: AppTheme.lightTheme.colorScheme.onSurface
                     .withValues(alpha: 0.7),

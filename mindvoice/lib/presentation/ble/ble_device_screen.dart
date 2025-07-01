@@ -5,6 +5,7 @@ import '../../core/app_export.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:path_provider/path_provider.dart';
+import 'dart:typed_data';
 
 class BleDeviceScreen extends StatefulWidget {
   const BleDeviceScreen({Key? key}) : super(key: key);
@@ -19,14 +20,15 @@ class _BleDeviceScreenState extends State<BleDeviceScreen> {
   bool _connected = false;
   String? _error;
   int _audioPackets = 0;
-  Stream<List<int>>? _audioStream;
-  StreamSubscription<List<int>>? _audioSubscription;
+  Stream<Uint8List>? _audioStream;
+  StreamSubscription<Uint8List>? _audioSubscription;
   List<int> _audioBuffer = [];
   String? _savedFilePath;
 
   @override
   void dispose() {
     _audioSubscription?.cancel();
+    _handleDisconnectAndSave();
     super.dispose();
   }
 
